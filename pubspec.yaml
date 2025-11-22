@@ -66,11 +66,10 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/videos/ads/20251110_162219_432380_5QayAWR5Fq2omQRMb8ab.mp4
+    - assets/videos/ads/
     - assets/videos/ads/sample2.mp4
     - assets/videos/ads/sample1.mp4
     - assets/videos/ads/sample3.mp4
-#    - assets/videos/sample1.mp4
-#    - assets/videos/sample2.mp4
     - assets/instructions.json
   #   - images/a_dot_ham.jpeg
 
