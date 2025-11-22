@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-
-import '../services/storage_service.dart';
-import '../services/video_schedule_service.dart';
+import 'package:chewie/chewie.dart';
+import '../presenters/video_player_presenter.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   const VideoPlayerScreen({super.key});
@@ -11,9 +9,8 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
-  VideoScheduleService _videoService = VideoScheduleService();
-  VideoPlayerController? _videoController;
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> implements VideoPlayerView {
+  final VideoPlayerPresenter _presenter = VideoPlayerPresenter();
 
   // State variables for UI
   String _currentError = '';
@@ -23,226 +20,257 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   int _currentVideoIndex = 0;
   int _totalVideos = 0;
   String _currentVideoName = '';
+  ChewieController? _chewieController;
 
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
-    _setupStreamListeners();
+    _presenter.attachView(this);
+    _initializeApp();
   }
 
-  void _setupStreamListeners() {
-    // Error messages listener
-    _videoService.errorStream.listen((error) async {
-      if (mounted) {
-        setState(() {
-          _currentError = error;
-          _currentSuccess = '';
-        });
-
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted && _currentError == error) {
-            setState(() {
-              _currentError = '';
-            });
-          }
-        });
-      }
-    });
-
-    // Success messages listener
-    _videoService.successStream.listen((success) {
-      if (mounted) {
-        setState(() {
-          _currentSuccess = success;
-          _currentError = '';
-        });
-
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted && _currentSuccess == success) {
-            setState(() {
-              _currentSuccess = '';
-            });
-          }
-        });
-      }
-    });
-
-    // Loading state listener
-    _videoService.loadingStream.listen((loading) {
-      if (mounted) {
-        setState(() {
-          _isLoading = loading;
-        });
-      }
-    });
-
-    // Playlist progress listener
-    _videoService.playlistProgressStream.listen((progress) {
-      if (mounted) {
-        setState(() {
-          _currentVideoIndex = progress['currentIndex'];
-          _totalVideos = progress['totalVideos'];
-          _currentVideoName = progress['currentVideo'];
-          _isPlaying = progress['isPlaying'];
-        });
-      }
-    });
-  }
-
-  Future<void> _initializePlayer() async {
+  Future<void> _initializeApp() async {
     try {
       setState(() {
         _isLoading = true;
+        _currentSuccess = 'Initializing video player...';
       });
 
-      // Load schedule
-      await _videoService.loadSchedule();
+      await _presenter.init();
 
-      // Get video paths from schedule
-      final videoPaths = _videoService.getAllVideoPaths();
-
-      if (videoPaths.isEmpty) {
+      if (mounted) {
         setState(() {
-          _currentError = 'No videos found. Please check JSON file.';
           _isLoading = false;
         });
-        return;
       }
-
-      setState(() {
-        _currentSuccess = '${videoPaths.length} videos loaded successfully';
-        _isLoading = false;
-      });
-
     } catch (e) {
-      setState(() {
-        _currentError = 'Failed to start application: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentError = 'Initialization failed: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // Clear all data and restart
-  Future<void> _clearAndRestart() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _currentSuccess = 'Clearing data...';
-      });
+  @override
+  void showError(String message) {
+    if (!mounted) return;
 
-      // Dispose old service completely
-      await _videoService.dispose();
+    setState(() {
+      _currentError = message;
+      _currentSuccess = '';
+    });
 
-      // Clear storage
-      await StorageService.clearAllData();
-
-      setState(() {
-        _currentSuccess = 'Data cleared, restarting...';
-      });
-
-      // Wait a bit for cleanup
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Create new service instance
-      _videoService = VideoScheduleService();
-
-      // Re-setup listeners
-      _setupStreamListeners();
-
-      // Reinitialize
-      await _initializePlayer();
-
-      setState(() {
-        _currentSuccess = 'Application restarted successfully';
-      });
-
-    } catch (e) {
-      setState(() {
-        _currentError = 'Reset failed: $e';
-        _isLoading = false;
-      });
-    }
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _currentError == message) {
+        setState(() {
+          _currentError = '';
+        });
+      }
+    });
   }
 
-  // Play video
+  @override
+  void showSuccess(String message) {
+    if (!mounted) return;
+
+    setState(() {
+      _currentSuccess = message;
+      _currentError = '';
+    });
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted && _currentSuccess == message) {
+        setState(() {
+          _currentSuccess = '';
+        });
+      }
+    });
+  }
+
+  @override
+  void updateVideo(ChewieController chewieController) {
+    if (!mounted) return;
+
+    // Dispose old controller
+    _chewieController?.dispose();
+
+    setState(() {
+      _chewieController = chewieController;
+      _isPlaying = true;
+    });
+  }
+
+  @override
+  void updatePlaybackInfo(int currentIndex, int totalVideos, String currentVideo) {
+    if (!mounted) return;
+
+    setState(() {
+      _currentVideoIndex = currentIndex;
+      _totalVideos = totalVideos;
+      _currentVideoName = currentVideo;
+    });
+  }
+
+  @override
+  BuildContext get context => super.context;
+
+  // Control methods
   Future<void> _playVideo() async {
-    try {
-      if (_videoService.currentController == null) {
-        setState(() {
-          _currentError = 'No video controller available';
-        });
-        return;
-      }
+    _presenter.play();
+  }
 
-      if (!_videoService.currentController!.value.isInitialized) {
-        setState(() {
-          _currentError = 'Video not initialized yet';
-        });
-        return;
-      }
+  Future<void> _pauseVideo() async {
+    _presenter.pause();
+  }
 
-      // Check if video is already playing
-      if (_videoService.currentController!.value.isPlaying) {
-        setState(() {
-          _currentSuccess = 'Video is already playing';
-          _isPlaying = true;
-        });
-        return;
-      }
+  Future<void> _skipToNext() async {
+    _presenter.skipToNext();
+  }
 
-      await _videoService.play();
+  Future<void> _skipToPrevious() async {
+    _presenter.skipToPrevious();
+  }
 
+  Future<void> _restartPlaylist() async {
+    _presenter.restartPlaylist();
+  }
+
+  Future<void> _refreshSchedule() async {
+    setState(() {
+      _isLoading = true;
+      _currentSuccess = 'Refreshing schedule...';
+    });
+
+    await _presenter.refreshSchedule();
+
+    if (mounted) {
       setState(() {
-        _isPlaying = true;
-        _currentSuccess = 'Playback resumed';
-      });
-
-    } catch (e) {
-      setState(() {
-        _currentError = 'Failed to play video: $e';
+        _isLoading = false;
       });
     }
   }
 
-  // Pause video
-  Future<void> _pauseVideo() async {
-    try {
-      if (_videoService.currentController == null) {
-        setState(() {
-          _currentError = 'No video controller available';
-        });
-        return;
-      }
+  Widget _buildTopHeaderBar() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black.withOpacity(0.9),
+              Colors.black.withOpacity(0.7),
+              Colors.transparent,
+            ],
+            stops: const [0.0, 0.7, 1.0],
+          ),
+        ),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.15),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Status Indicator
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _isPlaying
+                        ? [const Color(0xFF00D4AA), const Color(0xFF00B894)]
+                        : [const Color(0xFFFF6B6B), const Color(0xFFEE5A6F)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
 
-      if (!_videoService.currentController!.value.isInitialized) {
-        setState(() {
-          _currentError = 'Video not initialized yet';
-        });
-        return;
-      }
+              // Play Icon
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white.withOpacity(0.9),
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
 
-      // Check if video is already paused
-      if (!_videoService.currentController!.value.isPlaying) {
-        setState(() {
-          _currentSuccess = 'Video is already paused';
-          _isPlaying = false;
-        });
-        return;
-      }
+              // Now Playing Text
+              const Text(
+                'NOW PLAYING',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(width: 8),
 
-      await _videoService.pause();
+              // Video Name
+              Expanded(
+                child: Text(
+                  _currentVideoName.isNotEmpty ? _currentVideoName : 'Loading...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
 
-      setState(() {
-        _isPlaying = false;
-        _currentSuccess = 'Playback paused';
-      });
-
-    } catch (e) {
-      setState(() {
-        _currentError = 'Failed to pause video: $e';
-      });
-    }
+              // Progress Indicator
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                  ),
+                ),
+                child: Text(
+                  '${_currentVideoIndex}/$_totalVideos',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomMessageOverlay() {
@@ -360,207 +388,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  Widget _buildVideoInfo() {
-    return Positioned(
-      bottom: 220,
-      left: 24,
-      right: 24,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.black.withOpacity(0.85),
-              Colors.black.withOpacity(0.75),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.15),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-              spreadRadius: -5,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF667EEA).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.play_circle_filled_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NOW PLAYING',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _currentVideoName.isNotEmpty ? _currentVideoName : 'Loading...',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4DABF7), Color(0xFF339AF0)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4DABF7).withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    '$_totalVideos > 0 ? ${_currentVideoIndex + 1} : 0/$_totalVideos',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _isPlaying
-                            ? [const Color(0xFF51CF66), const Color(0xFF37B24D)]
-                            : [const Color(0xFFFFA94D), const Color(0xFFFF8C42)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isPlaying ? const Color(0xFF51CF66) : const Color(0xFFFFA94D)).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _isPlaying ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isPlaying ? 'PLAYING' : 'PAUSED',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFCC5DE8), Color(0xFFAD5DD7)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFCC5DE8).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.video_library_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$_totalVideos VIDEOS',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildControlButtons() {
     return Positioned(
       bottom: 30,
@@ -569,14 +396,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Previous Button
+          _buildControlButton(
+            onPressed: _skipToPrevious,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+            ),
+            icon: Icons.skip_previous_rounded,
+            shadowColor: const Color(0xFF667EEA),
+            label: 'PREV',
+          ),
+          const SizedBox(width: 16),
+
           // Play Button
           _buildControlButton(
             onPressed: _playVideo,
             gradient: const LinearGradient(
-              colors: [Color(0xFF51CF66), Color(0xFF37B24D)],
+              colors: [Color(0xFF00D4AA), Color(0xFF00B894)],
             ),
             icon: Icons.play_arrow_rounded,
-            shadowColor: const Color(0xFF51CF66),
+            shadowColor: const Color(0xFF00D4AA),
             label: 'PLAY',
           ),
           const SizedBox(width: 16),
@@ -593,9 +432,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
           const SizedBox(width: 16),
 
+          // Next Button
+          _buildControlButton(
+            onPressed: _skipToNext,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+            ),
+            icon: Icons.skip_next_rounded,
+            shadowColor: const Color(0xFF667EEA),
+            label: 'NEXT',
+          ),
+          const SizedBox(width: 16),
+
           // Restart Button
           _buildControlButton(
-            onPressed: _clearAndRestart,
+            onPressed: _restartPlaylist,
             gradient: const LinearGradient(
               colors: [Color(0xFFFF6B6B), Color(0xFFEE5A6F)],
             ),
@@ -669,18 +520,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildVideoPlayer() {
-    if (_videoService.currentController != null &&
-        _videoService.currentController!.value.isInitialized) {
-      return SizedBox.expand(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: _videoService.currentController!.value.size.width,
-            height: _videoService.currentController!.value.size.height,
-            child: VideoPlayer(_videoService.currentController!),
-          ),
-        ),
-      );
+    if (_chewieController != null &&
+        _chewieController!.videoPlayerController.value.isInitialized) {
+      return Chewie(controller: _chewieController!);
     } else {
       return Center(
         child: Column(
@@ -739,6 +581,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   letterSpacing: 0.3,
                 ),
                 textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _refreshSchedule,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF667EEA),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Refresh Schedule',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -837,9 +697,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             else
               _buildVideoPlayer(),
 
-            // Video Information (Bottom - Above Messages)
+            // Top Header Bar with Now Playing
             if (_totalVideos > 0 && !_isLoading)
-              _buildVideoInfo(),
+              _buildTopHeaderBar(),
 
             // Messages Overlay (Bottom - Above Controls)
             if (!_isLoading)
@@ -856,8 +716,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
-    _videoService.dispose();
-    _videoController?.dispose();
+    _presenter.dispose();
+    _chewieController?.dispose();
     super.dispose();
   }
 }

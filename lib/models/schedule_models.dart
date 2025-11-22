@@ -1,13 +1,13 @@
 class Schedule {
   final String playlistRepeat;
-  final List<PlaylistItem> playlist;
+  final List<ScheduleItem> playlist;
 
   Schedule({required this.playlistRepeat, required this.playlist});
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
     var playlistList = json['playlist'] as List;
-    List<PlaylistItem> playlist = playlistList
-        .map((item) => PlaylistItem.fromJson(item as Map<String, dynamic>))
+    List<ScheduleItem> playlist = playlistList
+        .map((item) => ScheduleItem.fromJson(item as Map<String, dynamic>))
         .toList();
 
     return Schedule(
@@ -24,14 +24,14 @@ class Schedule {
   }
 }
 
-class PlaylistItem {
+class ScheduleItem {
   final String folder;
   final List<String> files;
   final int adId;
   final int repeat;
   final int sequence;
 
-  PlaylistItem({
+  ScheduleItem({
     required this.folder,
     required this.files,
     required this.adId,
@@ -39,11 +39,11 @@ class PlaylistItem {
     required this.sequence,
   });
 
-  factory PlaylistItem.fromJson(Map<String, dynamic> json) {
+  factory ScheduleItem.fromJson(Map<String, dynamic> json) {
     var filesList = json['files'] as List;
     List<String> files = filesList.map((file) => file as String).toList();
 
-    return PlaylistItem(
+    return ScheduleItem(
       folder: json['folder'] as String,
       files: files,
       adId: json['ad_id'] as int,
