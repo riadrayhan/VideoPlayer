@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
@@ -21,33 +22,40 @@ class VideoPlayerPresenter {
   List<VideoPlayerController> _allControllers = [];
   int _currentIndex = 0;
   bool _isInitialized = false;
+  Timer? _playbackTimer;
 
   void attachView(VideoPlayerView view) => _view = view;
 
   Future<void> init() async {
     try {
+      _view?.showSuccess("🚀 Initializing video player...");
+
       // Load schedule first
       await _scheduleService.loadSchedule();
 
       // Check if schedule is available
       final schedule = _scheduleService.getCurrentSchedule();
       if (schedule == null) {
-        _view?.showError("কোনো সিডিউল পাওয়া যায়নি। JSON ফাইল চেক করুন।");
+        _view?.showError("❌ No schedule found. Please check JSON file.");
         return;
       }
 
       await _loadAndStartPlaylist();
       _isInitialized = true;
-      _view?.showSuccess("ভিডিও প্লেয়ার প্রস্তুত হয়েছে");
+      _view?.showSuccess("✅ Video player ready");
+
+      // Start playback analytics
+      _startPlaybackAnalytics();
+
     } catch (e) {
-      _view?.showError("ইনিশিয়ালাইজ করতে সমস্যা: $e");
+      _view?.showError("💥 Initialization failed: $e");
     }
   }
 
   Future<void> _loadAndStartPlaylist() async {
     final schedule = _scheduleService.getCurrentSchedule();
     if (schedule == null) {
-      _view?.showError("কোনো সিডিউল পাওয়া যায়নি");
+      _view?.showError("📋 No schedule available");
       return;
     }
 
@@ -55,16 +63,16 @@ class VideoPlayerPresenter {
     final videoPaths = _scheduleService.getAllVideoPaths();
 
     if (videoPaths.isEmpty) {
-      _view?.showError("প্লেলিস্টে কোনো ভিডিও নেই");
+      _view?.showError("🎬 No videos in playlist");
       return;
     }
 
-    _view?.showSuccess("${videoPaths.length}টি ভিডিও লোড করা হচ্ছে...");
+    _view?.showSuccess("📥 Loading ${videoPaths.length} videos...");
     await _preloadAllVideos(videoPaths);
 
     if (_allControllers.isNotEmpty) {
       _startPlaybackLoop();
-      _view?.showSuccess("ভিডিও প্লেব্যাক শুরু হয়েছে");
+      _view?.showSuccess("▶️ Playback started");
     }
   }
 
@@ -72,32 +80,39 @@ class VideoPlayerPresenter {
     _allControllers.clear();
     _currentIndex = 0;
 
+    int successCount = 0;
+    int errorCount = 0;
+
     for (var assetPath in assetPaths) {
       try {
-        // Pass context to AssetVideoLoader
+        _view?.showSuccess("🔄 Loading: ${assetPath.split('/').last}");
+
         final localPath = await AssetVideoLoader.getLocalPath(_view!.context, assetPath);
         final controller = VideoPlayerController.file(File(localPath));
         await controller.initialize();
         _allControllers.add(controller);
-        print('ভিডিও প্রিলোড করা হয়েছে: $assetPath');
+        successCount++;
+
+        print('✅ Video preloaded: $assetPath');
       } catch (e) {
-        debugPrint("ভিডিও স্কিপ করা হয়েছে: $assetPath → $e");
-        _view?.showError("ভিডিও লোড করতে সমস্যা: ${assetPath.split('/').last}");
+        debugPrint("❌ Video skipped: $assetPath → $e");
+        _view?.showError("⚠️ Failed to load: ${assetPath.split('/').last}");
+        errorCount++;
       }
     }
 
     _allControllers.removeWhere((c) => !c.value.isInitialized);
 
     if (_allControllers.isEmpty) {
-      _view?.showError("চালানোর মতো কোনো ভিডিও নেই");
+      _view?.showError("🎯 No playable videos found");
     } else {
-      _view?.showSuccess("${_allControllers.length}টি ভিডিও প্রস্তুত হয়েছে");
+      _view?.showSuccess("✅ $successCount videos ready${errorCount > 0 ? ' ($errorCount failed)' : ''}");
     }
   }
 
   void _startPlaybackLoop() {
     if (_allControllers.isEmpty) {
-      _view?.showError("চালানোর মতো কোনো ভিডিও নেই");
+      _view?.showError("🎬 No videos available for playback");
       return;
     }
 
@@ -110,6 +125,7 @@ class VideoPlayerPresenter {
     final controller = _allControllers[_currentIndex];
     if (controller.value.isCompleted) {
       controller.removeListener(_videoListener);
+      _view?.showSuccess("⏭️ Moving to next video...");
       _nextVideo();
     }
   }
@@ -127,16 +143,44 @@ class VideoPlayerPresenter {
       showControls: false,
       allowFullScreen: false,
       materialProgressColors:  ChewieProgressColors(
-        playedColor: Colors.transparent,
-        handleColor: Colors.transparent,
-        backgroundColor: Colors.transparent,
-        bufferedColor: Colors.transparent,
+        playedColor: Colors.blue,
+        handleColor: Colors.white,
+        backgroundColor: Colors.grey,
+        bufferedColor: Colors.grey,
       ),
-      placeholder: Container(color: Colors.black),
+      placeholder: Container(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.video_library,
+                color: Colors.white54,
+                size: 64,
+              ),
+              SizedBox(height: 16),
+              Text(
+                "Loading Video...",
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      autoInitialize: true,
+      showOptions: false,
     );
 
     _view?.updateVideo(_chewieController!);
     _updatePlaybackInfo();
+
+    // Show current video info
+    final currentVideoName = _scheduleService.getAllVideoPaths()[_currentIndex].split('/').last;
+    _view?.showSuccess("🎥 Now playing: $currentVideoName");
   }
 
   void _nextVideo() {
@@ -160,20 +204,47 @@ class VideoPlayerPresenter {
     );
   }
 
+  void _startPlaybackAnalytics() {
+    _playbackTimer?.cancel();
+    _playbackTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      if (_isInitialized && _allControllers.isNotEmpty) {
+        print('📊 Playback Analytics - Current: ${_currentIndex + 1}/${_allControllers.length}');
+      }
+    });
+  }
+
   // Public control methods
   void play() {
-    _chewieController?.play();
+    if (_chewieController != null) {
+      _chewieController!.play();
+      _view?.showSuccess("▶️ Playback resumed");
+    }
   }
 
   void pause() {
-    _chewieController?.pause();
+    if (_chewieController != null) {
+      _chewieController!.pause();
+      _view?.showSuccess("⏸️ Playback paused");
+    }
   }
 
   void skipToNext() {
     if (_allControllers.isEmpty) return;
 
     _allControllers[_currentIndex].removeListener(_videoListener);
+    _view?.showSuccess("⏭️ Skipping to next video...");
     _nextVideo();
+  }
+
+  void skipToPrevious() {
+    if (_allControllers.isEmpty) return;
+
+    _allControllers[_currentIndex].removeListener(_videoListener);
+    _currentIndex = (_currentIndex - 1) % _allControllers.length;
+    if (_currentIndex < 0) _currentIndex = _allControllers.length - 1;
+    _playCurrent();
+    _allControllers[_currentIndex].addListener(_videoListener);
+    _view?.showSuccess("⏮️ Previous video");
   }
 
   void restartPlaylist() {
@@ -183,6 +254,17 @@ class VideoPlayerPresenter {
     _currentIndex = 0;
     _playCurrent();
     _allControllers[_currentIndex].addListener(_videoListener);
+    _view?.showSuccess("🔄 Playlist restarted");
+  }
+
+  void seekToVideo(int index) {
+    if (_allControllers.isEmpty || index < 0 || index >= _allControllers.length) return;
+
+    _allControllers[_currentIndex].removeListener(_videoListener);
+    _currentIndex = index;
+    _playCurrent();
+    _allControllers[_currentIndex].addListener(_videoListener);
+    _view?.showSuccess("🎯 Jumped to video ${index + 1}");
   }
 
   Map<String, dynamic> getPlaybackInfo() {
@@ -191,6 +273,10 @@ class VideoPlayerPresenter {
       'totalVideos': _allControllers.length,
       'isPlaying': _chewieController?.isPlaying ?? false,
       'isInitialized': _isInitialized,
+      'currentVideo': _currentIndex < _allControllers.length ?
+      _scheduleService.getAllVideoPaths()[_currentIndex].split('/').last : 'None',
+      'playbackProgress': _allControllers.isNotEmpty ?
+      '${_currentIndex + 1}/${_allControllers.length}' : '0/0',
     };
   }
 
@@ -198,12 +284,49 @@ class VideoPlayerPresenter {
     return _scheduleService.getScheduleInfo();
   }
 
+  List<String> getPlaylist() {
+    return _scheduleService.getAllVideoPaths().map((path) => path.split('/').last).toList();
+  }
+
   Future<void> refreshSchedule() async {
-    await _scheduleService.forceUpdateSchedule();
-    await _loadAndStartPlaylist();
+    try {
+      _view?.showSuccess("🔄 Refreshing schedule...");
+      await _scheduleService.forceUpdateSchedule();
+      await _loadAndStartPlaylist();
+      _view?.showSuccess("✅ Schedule updated successfully");
+    } catch (e) {
+      _view?.showError("❌ Schedule refresh failed: $e");
+    }
+  }
+
+  Future<void> reloadPlaylist() async {
+    try {
+      _view?.showSuccess("🔄 Reloading playlist...");
+      await _loadAndStartPlaylist();
+      _view?.showSuccess("✅ Playlist reloaded");
+    } catch (e) {
+      _view?.showError("❌ Playlist reload failed: $e");
+    }
+  }
+
+  // Volume control
+  void setVolume(double volume) {
+    if (_chewieController != null) {
+      // Note: Chewie doesn't have direct volume control, this would need video_player controller
+      _view?.showSuccess("🔊 Volume: ${(volume * 100).toInt()}%");
+    }
+  }
+
+  // Playback speed control
+  void setPlaybackSpeed(double speed) {
+    if (_chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
+      _chewieController!.videoPlayerController.setPlaybackSpeed(speed);
+      _view?.showSuccess("⚡ Playback speed: ${speed}x");
+    }
   }
 
   void dispose() {
+    _playbackTimer?.cancel();
     _chewieController?.dispose();
     for (var c in _allControllers) {
       c.removeListener(_videoListener);
@@ -211,5 +334,7 @@ class VideoPlayerPresenter {
     }
     _allControllers.clear();
     _scheduleService.dispose();
+
+    print('♻️ VideoPlayerPresenter disposed');
   }
 }

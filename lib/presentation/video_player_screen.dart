@@ -189,44 +189,66 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         children: [
           // Error Message
           if (_currentError.isNotEmpty)
-            _buildMessageContainer(_currentError, Colors.red),
+            _buildMessageContainer(
+              _currentError,
+              Colors.red,
+              Icons.error_outline,
+            ),
 
           // Success Message
           if (_currentSuccess.isNotEmpty)
-            _buildMessageContainer(_currentSuccess, Colors.green),
+            _buildMessageContainer(
+              _currentSuccess,
+              Colors.green,
+              Icons.check_circle,
+            ),
 
           // Video Status
           if (_videoStatus.isNotEmpty)
-            _buildMessageContainer(_videoStatus, Colors.blue),
+            _buildMessageContainer(
+              _videoStatus,
+              Colors.blue,
+              Icons.info_outline,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageContainer(String message, Color color) {
+  Widget _buildMessageContainer(String message, Color color, IconData icon) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(
-            color == Colors.red ? Icons.error_outline :
-            color == Colors.green ? Icons.check_circle : Icons.info_outline,
-            color: Colors.white,
-            size: 20,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
@@ -234,6 +256,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
+                height: 1.3,
               ),
             ),
           ),
@@ -248,10 +271,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       left: 20,
       right: 20,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.black.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -259,40 +293,106 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    'ভিডিও: $_currentVideoName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.video_library,
+                        color: Colors.white.withOpacity(0.8),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _currentVideoName,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  '${_currentVideoIndex + 1}/$_totalVideos',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Text(
+                    '${_currentVideoIndex + 1}/$_totalVideos',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'স্ট্যাটাস: ${_isPlaying ? 'চালু' : 'বন্ধ'}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isPlaying ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isPlaying ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isPlaying ? Icons.play_arrow : Icons.pause,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isPlaying ? 'চালু' : 'বন্ধ',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'প্লেলিস্ট: $_totalVideos ভিডিও',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.purple.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.library_music,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_totalVideos ভিডিও',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -309,25 +409,69 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       right: 20,
       child: Column(
         children: [
-          FloatingActionButton(
-            onPressed: _playVideo,
-            backgroundColor: Colors.green,
-            mini: true,
-            child: const Icon(Icons.play_arrow, color: Colors.white),
+          // Play Button
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed: _playVideo,
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.play_arrow, size: 28),
+            ),
           ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            onPressed: _pauseVideo,
-            backgroundColor: Colors.orange,
-            mini: true,
-            child: const Icon(Icons.pause, color: Colors.white),
+
+          // Pause Button
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed: _pauseVideo,
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.pause, size: 28),
+            ),
           ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            onPressed: _clearAndRestart,
-            backgroundColor: Colors.red,
-            mini: true,
-            child: const Icon(Icons.refresh, color: Colors.white),
+
+          // Restart Button
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.4),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              onPressed: _clearAndRestart,
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.refresh, size: 28),
+            ),
           ),
         ],
       ),
@@ -337,28 +481,65 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Widget _buildVideoPlayer() {
     if (_videoService.currentController != null &&
         _videoService.currentController!.value.isInitialized) {
-      return Center(
-        child: AspectRatio(
-          aspectRatio: _videoService.currentController!.value.aspectRatio,
-          child: VideoPlayer(_videoService.currentController!),
+      return Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: _videoService.currentController!.value.aspectRatio,
+            child: VideoPlayer(_videoService.currentController!),
+          ),
         ),
       );
     } else {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.videocam_off, color: Colors.white54, size: 64),
-            SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.videocam_off,
+                color: Colors.white54,
+                size: 80,
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'কোনো ভিডিও পাওয়া যায়নি',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'JSON ফাইল চেক করুন বা ভিডিও অ্যাড করুন',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                'JSON ফাইল চেক করুন বা ভিডিও অ্যাড করুন',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -367,15 +548,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildLoadingScreen() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: Colors.white),
-          SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 20),
           Text(
             'লোড হচ্ছে...',
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ভিডিও প্লেলিস্ট প্রস্তুত করা হচ্ছে',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -386,25 +593,37 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Video Player or Loading Screen
-          if (_isLoading)
-            _buildLoadingScreen()
-          else
-            _buildVideoPlayer(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black,
+              Colors.grey[900]!,
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Video Player or Loading Screen
+            if (_isLoading)
+              _buildLoadingScreen()
+            else
+              _buildVideoPlayer(),
 
-          // Messages Overlay (Error, Success, Status)
-          _buildMessageOverlay(),
+            // Messages Overlay (Error, Success, Status)
+            _buildMessageOverlay(),
 
-          // Video Information
-          if (_totalVideos > 0 && !_isLoading)
-            _buildVideoInfo(),
+            // Video Information
+            if (_totalVideos > 0 && !_isLoading)
+              _buildVideoInfo(),
 
-          // Control Buttons
-          if (_videoService.currentController != null && !_isLoading)
-            _buildControlButtons(),
-        ],
+            // Control Buttons
+            if (_videoService.currentController != null && !_isLoading)
+              _buildControlButtons(),
+          ],
+        ),
       ),
     );
   }
