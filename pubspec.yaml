@@ -69,8 +69,8 @@ flutter:
     - assets/videos/ads/sample2.mp4
     - assets/videos/ads/sample1.mp4
     - assets/videos/ads/sample3.mp4
-#    - assets/videos/sample1.mp4
-#    - assets/videos/sample2.mp4
+    - assets/videos/sample1.mp4
+    - assets/videos/sample2.mp4
     - assets/instructions.json
   #   - images/a_dot_ham.jpeg
 

@@ -1,21 +1,21 @@
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const String _instructionsKey = 'last_applied_instructions';
   static const String _appConfigKey = 'app_config';
   static const String _lastErrorKey = 'last_error';
+  static const String _playbackStatsKey = 'playback_stats';
 
   // Save instructions to local storage
   static Future<void> saveInstructions(String instructionsJson) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_instructionsKey, instructionsJson);
-      print('নির্দেশনা সফলভাবে সেভ করা হয়েছে');
+      print('Instructions saved successfully');
     } catch (e) {
-      print('নির্দেশনা সেভ করতে সমস্যা: $e');
-      throw Exception('নির্দেশনা সেভ করতে সমস্যা: $e');
+      print('Error saving instructions: $e');
+      throw Exception('Error saving instructions: $e');
     }
   }
 
@@ -26,14 +26,14 @@ class StorageService {
       final instructions = prefs.getString(_instructionsKey);
 
       if (instructions != null) {
-        print('সেভ করা নির্দেশনা পাওয়া গেছে');
+        print('Saved instructions found');
       } else {
-        print('কোনো সেভ করা নির্দেশনা পাওয়া যায়নি');
+        print('No saved instructions found');
       }
 
       return instructions;
     } catch (e) {
-      print('নির্দেশনা লোড করতে সমস্যা: $e');
+      print('Error loading instructions: $e');
       return null;
     }
   }
@@ -43,9 +43,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_instructionsKey);
-      print('নির্দেশনা ক্লিয়ার করা হয়েছে');
+      print('Instructions cleared');
     } catch (e) {
-      print('নির্দেশনা ক্লিয়ার করতে সমস্যা: $e');
+      print('Error clearing instructions: $e');
     }
   }
 
@@ -54,9 +54,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastErrorKey, error);
-      print('Error সেভ করা হয়েছে: $error');
+      print('Error saved: $error');
     } catch (e) {
-      print('Error সেভ করতে সমস্যা: $e');
+      print('Error saving error: $e');
     }
   }
 
@@ -66,7 +66,7 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_lastErrorKey);
     } catch (e) {
-      print('Error লোড করতে সমস্যা: $e');
+      print('Error loading last error: $e');
       return null;
     }
   }
@@ -76,9 +76,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastErrorKey);
-      print('Error ক্লিয়ার করা হয়েছে');
+      print('Last error cleared');
     } catch (e) {
-      print('Error ক্লিয়ার করতে সমস্যা: $e');
+      print('Error clearing last error: $e');
     }
   }
 
@@ -88,9 +88,9 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       final configJson = jsonEncode(config);
       await prefs.setString(_appConfigKey, configJson);
-      print('অ্যাপ কনফিগ সফলভাবে সেভ করা হয়েছে');
+      print('App config saved successfully');
     } catch (e) {
-      print('অ্যাপ কনফিগ সেভ করতে সমস্যা: $e');
+      print('Error saving app config: $e');
     }
   }
 
@@ -102,13 +102,44 @@ class StorageService {
 
       if (configJson != null) {
         final config = jsonDecode(configJson) as Map<String, dynamic>;
-        print('অ্যাপ কনফিগ লোড করা হয়েছে');
+        print('App config loaded');
         return config;
       }
 
       return null;
     } catch (e) {
-      print('অ্যাপ কনফিগ লোড করতে সমস্যা: $e');
+      print('Error loading app config: $e');
+      return null;
+    }
+  }
+
+  // Save playback statistics
+  static Future<void> savePlaybackStats(Map<String, dynamic> stats) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final statsJson = jsonEncode(stats);
+      await prefs.setString(_playbackStatsKey, statsJson);
+      print('Playback stats saved');
+    } catch (e) {
+      print('Error saving playback stats: $e');
+    }
+  }
+
+  // Get playback statistics
+  static Future<Map<String, dynamic>?> getPlaybackStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final statsJson = prefs.getString(_playbackStatsKey);
+
+      if (statsJson != null) {
+        final stats = jsonDecode(statsJson) as Map<String, dynamic>;
+        print('Playback stats loaded');
+        return stats;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error loading playback stats: $e');
       return null;
     }
   }
@@ -118,9 +149,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      print('সমস্ত ডাটা ক্লিয়ার করা হয়েছে');
+      print('All data cleared successfully');
     } catch (e) {
-      print('ডাটা ক্লিয়ার করতে সমস্যা: $e');
+      print('Error clearing data: $e');
     }
   }
 
@@ -130,7 +161,18 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.containsKey(_instructionsKey);
     } catch (e) {
-      print('নির্দেশনা চেক করতে সমস্যা: $e');
+      print('Error checking instructions: $e');
+      return false;
+    }
+  }
+
+  // Check if app config exists
+  static Future<bool> hasAppConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_appConfigKey);
+    } catch (e) {
+      print('Error checking app config: $e');
       return false;
     }
   }
@@ -141,21 +183,84 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       final instructions = await getSavedInstructions();
       final hasInstructions = await hasSavedInstructions();
+      final hasConfig = await hasAppConfig();
+      final lastError = await getLastError();
 
       return {
         'hasInstructions': hasInstructions,
         'instructionsLength': instructions?.length ?? 0,
-        'lastError': await getLastError(),
-        'hasAppConfig': prefs.containsKey(_appConfigKey),
+        'lastError': lastError,
+        'hasAppConfig': hasConfig,
+        'totalKeys': prefs.getKeys().length,
       };
     } catch (e) {
-      print('স্টোরেজ তথ্য পাওয়ার过程中 সমস্যা: $e');
+      print('Error getting storage info: $e');
       return {
         'hasInstructions': false,
         'instructionsLength': 0,
         'lastError': null,
         'hasAppConfig': false,
+        'totalKeys': 0,
       };
+    }
+  }
+
+  // Get all stored keys (for debugging)
+  static Future<List<String>> getAllKeys() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getKeys().toList();
+    } catch (e) {
+      print('Error getting storage keys: $e');
+      return [];
+    }
+  }
+
+  // Remove specific key
+  static Future<bool> removeKey(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final result = await prefs.remove(key);
+      print('Key removed: $key');
+      return result;
+    } catch (e) {
+      print('Error removing key: $e');
+      return false;
+    }
+  }
+
+  // Check if key exists
+  static Future<bool> keyExists(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(key);
+    } catch (e) {
+      print('Error checking key existence: $e');
+      return false;
+    }
+  }
+
+  // Get string value by key
+  static Future<String?> getString(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    } catch (e) {
+      print('Error getting string: $e');
+      return null;
+    }
+  }
+
+  // Set string value by key
+  static Future<bool> setString(String key, String value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final result = await prefs.setString(key, value);
+      print('String saved for key: $key');
+      return result;
+    } catch (e) {
+      print('Error setting string: $e');
+      return false;
     }
   }
 }
